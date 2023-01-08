@@ -1,0 +1,128 @@
+# -*- coding: utf-8 -*-
+"""
+Created on Sat Feb 19 19:45:03 2022
+
+@author: Joel
+"""
+
+import numpy as np
+import matplotlib.pyplot as plt
+import matplotlib.patches as mpatches
+import random as rand
+# set of tau points
+# tau needs to be calculated for time occurrence
+#function for how much reservoir is expended (W_exp)
+ 
+w0 = 14000 # w initial
+cp = 200 # critical power
+j = 0  # time
+N = 1000
+t_i = 1000 # total time
+dt = t_i/N
+er = 0.9
+ 
+time = np.linspace(0,t_i,N)
+power = np.zeros(N)
+w_vals = np.zeros(N)
+ 
+# function of a time step
+#changed so that t could be a float
+def p(t):
+    # if t <= t_i/2:
+    #     return 0.5*cp
+    # return 1.001*cp
+    # return 1.001*cp
+    return 2*cp*t/t_i*random_variation(t)
+    # return 200*(np.sign(np.sin(25*np.pi*t/t_i)) + 2)/2 #*random_variation(t)
+    # return 200*(np.sin(25*np.pi*t/t_i) + 2)/2
+    # return 200*(np.sin(25*np.pi*t/t_i) + 2)/2*random_variation(t)
+
+
+def random_variation(t):
+    rand.seed(t)
+    return (1.0 + er*rand.randrange(-1,1))
+ 
+# the recovery coefficient found experimentally
+def tau_w(dcp):
+   return 546*np.exp(-0.01*dcp)+316
+
+def attn(i, j):
+    # the difference between the crital power and the power output at time j
+   dcp = cp - p(j)
+   # the recovery rate of the athlete
+   tau = tau_w(dcp)
+   # returns how much energy the athlete has recovered from the power output history
+   return np.exp(-(j-i)/tau)
+ 
+# w_expended: take ith time step
+def w_exp(i):
+   if p(i) < cp:
+       return 0
+   return (p(i)-cp)*dt
+
+def w_bal(j):
+   sums = 0
+   for i in np.arange(0,j,dt):
+       sums += attn(i,j)*w_exp(i)*dt
+   return w0 - sums
+
+
+def Error():
+    errors = np.linspace(0, 0.3, 5)
+    w_sets = []
+    global er
+    
+    for i in errors:
+        print(i)
+        er = i
+        w_vals = np.zeros(N)
+        
+        for index, t in enumerate(time):
+            w_vals[index] = w_bal(t)
+            
+        w_sets += [w_vals]
+        
+    return w_sets
+        
+    
+    
+# w_sets = Error()
+
+ 
+for index, t in enumerate(time):
+    w_vals[index] = w_bal(t)
+ 
+
+w_vals = w_vals
+power_out = np.array([p(i) for i in time])
+
+patch = []
+
+fig, ax1 = plt.subplots() 
+
+color = 'tab:cyan'
+ax1.set_xlabel('time (s)')
+ax1.set_ylabel('Power Output (watts)', color=color)  # we already handled the x-label with ax1
+# ax1.set_xlim([xmin, xmax])
+ax1.set_ylim([0, 400])
+ax1.plot(time, power_out, color=color)
+ax1.tick_params(axis='y', labelcolor=color)
+ax1.hlines(y=cp, xmin = 0, xmax = t_i, color='blue', linestyle='--')
+patch.append(mpatches.Patch(color=color, label="Power Output"))
+patch.append(mpatches.Patch(color='blue', label="Critical Power"))
+
+ax2 = ax1.twinx()  # instantiate a second axes that shares the same x-axis
+
+color = 'tab:red'
+ax2.set_ylabel("W'_'bal (joules)", color=color)
+# ax2.set_xlim([xmin, xmax])
+# ax2.set_ylim([-4E4, 2E4])
+ax2.plot(time, w_vals, color=color)
+ax2.tick_params(axis='y', labelcolor=color)
+ax2.hlines(y=w0, xmin = 0, xmax = t_i, color='black', linestyle='--')
+patch.append(mpatches.Patch(color=color, label="W'_bal (joules)"))
+patch.append(mpatches.Patch(color='black', label="W'_0"))
+
+fig.tight_layout()  # otherwise the right y-label is slightly clipped
+plt.legend(handles=patch, loc='lower right')
+plt.show()
